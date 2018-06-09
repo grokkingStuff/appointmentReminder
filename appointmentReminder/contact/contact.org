@@ -1,6 +1,6 @@
 #+STARTIP: noindent
 
-#+BEGIN_SRC python
+#+BEGIN_SRC python :tangle contact.py
   from message import Message
 
   class Contact(object):
@@ -24,23 +24,239 @@
               raise ValueError("You must initialize the Contact class with a Twilio client!")
 
           if message.substitute():
-              message_response = Contact.message_client.messages.create(
-                                                                       from_ = message.header,
-                                                                       body = message.body,
-                                                                       to = self.email
-                                                                       )
-              self.log.append(message_response.sid)
+
           else:
               raise ValueError("Message entered has not been completely substituted")
 
   #    def email(self,message)
 #+END_SRC
 
+* Factory
+#+BEGIN_SRC python
+  import sqlite3 as sql
+
+  class Factory(object):
+       def __init__(self,cls,nallowed):
+           self.product_class=cls  #What class this Factory produces
+           self.nallowed=nallowed  #Number of instances allowed
+           self.products=[]
+
+       def __call__(self,*args,**kwargs):
+           self.products=[x for x in self.products if x() is not None] #filter out dead objects
+           if(len(self.products) <= self.nallowed):
+               newproduct=self.product_class(*args,**kwargs)
+               self.products.append(weakref.ref(newproduct))
+               return newproduct
+           else:
+               return None
+
+#+END_SRC
+
+* dbOpen
+#+BEGIN_SRC python
+  class dbopen(object):
+      """
+      Simple CM for sqlite3 databases. Commits everything at exit.
+      """
+      def __init__(self, path):
+          self.path = path
+          self.conn = None
+          self.cursor = None
+
+      def __enter__(self):
+          self.conn = sqlite3.connect(self.path)
+          self.cursor = self.conn.cursor()
+          return self.cursor
+
+      def __exit__(self, exc_class, exc, traceback):
+          self.conn.commit()
+          self.conn.close()
+#+END_SRC
+
+* iCloud
+#+BEGIN_SRC python
+  from helper import Factory
+
+  class iCloud(object):
+      """
+      Simple class for iCloud integration
+      """
+
+      def __init__(self, email, password):
+          self.email = email
+          self.password = password
+
+          from pyicloud import PyiCloudService
+          self.api = PyiCloudService(self.email,self.password)
+
+          if api.requires_2fa:
+              import click
+              print("Two-step authentication required. Your trusted devices are:")
+      
+              devices = api.trusted_devices
+              for i, device in enumerate(devices):
+                  print("Device#{}: {}".format(i, device.get('deviceName')))
+                  print("SMS to {}".format(device.get('phoneNumber')))
+      
+              device = click.prompt('Which device would you like to use?', default=0)
+              device = devices[device]
+              if not api.send_verification_code(device):
+                  raise ValueError("Failed to send verification code")
+      
+              code = click.prompt('Please enter validation code')
+              if not api.validate_verification_code(dict(), code):
+                  raise ValueError("Failed to verify verification code")
+
+  # Make iCloud a singleton class without shitty code
+  Factory(iCloud,1)
+#+END_SRC
+
+* Twilio
 
 #+BEGIN_SRC python
 
-class ContactBook(object):
-    def __init__(self):
-    def add(self,contact):
+  from helper import Factory
+
+  class MessageClient(object):
+      """
+      Class to handle sending messages through twilio.
+      """
+
+      def __init__(self,account_sid,auth_token):
+          self.account_sid = account_sid
+          self.auth_token = auth_token
+
+          from twilio.rest import Client
+          self.client = Client(self.account_sid,self.auth_token)
+
+      def send_message(self,message, phone):
+          message_response = self.client.messages.create(
+                                                         from_ = message.header,
+                                                         body = message.body,
+                                                         to = phone
+                                                        )
+          self.log.append(message_response.sid)
+#+END_SRC
+
+* Message class
+
+#+BEGIN_SRC python :tangle message.py :noweb yes
+class Message(object):
+    def __init__(self,message):
+        from string import Template
+        self.header    = Template(message["header"])
+        self.body      = Template(message["body"])
+        self.eventType =          message["eventType"]
+
+    <<substitute>>
+#+END_SRC
+
+
+** substitute
+ Takes in any number of *named* arguments and substitute them into the message header and body
+ #+NAME: substitute
+ #+BEGIN_SRC python
+   def substitute(self,**kwargs):
+i
+       from string import Template
+
+       for key,value in kwargs.items():
+           i = {"{}".format(key):value}
+
+           # Substitute the keywords into the tempate and save the result (string)
+           self.header = self.header.safe_substitute(i)
+           self.body = self.body.safe_substitute(i)
+
+           # Convert the resulting string back into a template
+           self.header = Template(self.header)
+           self.body = Template(self.body)
+
+       if ((    len(Template.pattern.findall(self.header.safe_substitute())) is 0) and
+           (    len(Template.pattern.findall(self.body.safe_substitute())) is 0)):
+           self.header = self.header.safe_substitute()
+           self.body = self.body.safe_substitute()
+           return True  # True that the string is substituted completely
+       else:
+           return False # False that the string is substitute completely
+ #+END_SRC
+
+*** tests
+
+**** check if header substitute text
+ #+BEGIN_SRC python
+
+ #+END_SRC
+
+**** check if body substitutes text
+ #+BEGIN_SRC python
+
+ #+END_SRC
+
+
+** test
+
+ #+BEGIN_SRC python
+
+ import message
+ import pytest
+
+
+
+ #+END_SRC
+ load more comments
+
+* ContactBook
+
+So the contact book is responsible for:
+  - connecting to iCloud via the iCloud class and then updating sql database
+  - retreiving information from the sql database and returning a Contact object
+
+It is not responsible for:
+  - Adding a contact to iCloud
+  - Updating contacts in iCloud
+  - Removing contacts that have been deleted in iCloud
+  - Sending messages and emails
+
+The Contact class is responsible for sending messages and emails. 
+#+BEGIN_SRC python
+
+  from helper import dbopen,Factory
+  from contact import Contact
+
+  class ContactBook(object):
+
+      icloud_client = None
+
+      def __init__(self):
+
+      # If a sql table is not created, create a sql table
+      
+      # Check if you can connect to iCloud using the class variable
+
+      def update(self):
+          if ContactBook.icloud_client is None:
+              raise ValueError("iCloud client has not been initialized. Exiting")
+
+          
+          list_of_contacts = ContactBook.icloud_client.api.contacts.all()
+          
+          contacts = []
+          for c in list_of_contacts:
+              
+              temp = {}
+              temp["firstName"] = contact.get('firstName','')
+              temp["lastName"] = contact.get('lastName','')
+              #temp["phone"] = contact.get('phone','')          # Processed below
+              temp["email"] = contact.get('email','')
+              temp["log"] = contact.get('log','')
+
+              # Parse through the available fields for phones before assigning
+              phone = contact.get('phones')
+
+      def get(self,**kwargs):
+
+  # Make contactbook a singleton class without shitty code
+  Factory(ContactBook,1)
+
 
 #+END_SRC
