@@ -1,15 +1,17 @@
+#+STARTUP: noindent
 
 
+#+BEGIN_SRC python :tangle message.py :noweb yes
 
-#+BEGIN_SRC python :tangle message.py
-  class Message(object):
-      def __init__(self,message):
-          from string import Template
-          self.header    = Template(message["header"])
-          self.body      = Template(message["body"])
-          self.eventType =          message["eventType"]
+import enum
+class Message(object):
+    def __init__(self,message):
+        from string import Template
+        self.header    = Template(message["header"])
+        self.body      = Template(message["body"])
+        self.eventType =          message["eventType"]
 
-      <<substitute>>
+    <<substitute>>
 #+END_SRC
 
 
@@ -18,21 +20,40 @@ Takes in any number of *named* arguments and substitute them into the message he
 #+NAME: substitute
 #+BEGIN_SRC python
   def substitute(self,**kwargs):
-      for key,value in kwargs.iteritems():
+
+      from string import Template
+
+      for key,value in kwargs.items():
           i = {"{}".format(key):value}
-          self.header.safe_substitute(i)
-          self.body.safe_substitute(i)
+
+          # Substitute the keywords into the tempate and save the result (string)
+          self.header = self.header.safe_substitute(i)
+          self.body = self.body.safe_substitute(i)
+
+          # Convert the resulting string back into a template
+          self.header = Template(self.header)
+          self.body = Template(self.body)
+
+      if ((    len(Template.pattern.findall(self.header.safe_substitute())) is 0) and
+          (    len(Template.pattern.findall(self.body.safe_substitute())) is 0)):
+          self.header = self.header.safe_substitute()
+          self.body = self.body.safe_substitute()
+          return True  # True that the string is substituted completely
+      else:
+          return False # False that the string is substitute completely
 #+END_SRC
 
 ** tests
 
 *** check if header substitute text
-#+BEGIN_SRC 
+#+BEGIN_SRC python
 
 #+END_SRC
 
 *** check if body substitutes text
+#+BEGIN_SRC python
 
+#+END_SRC
 
 
 * test
