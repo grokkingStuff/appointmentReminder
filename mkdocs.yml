@@ -1,0 +1,13 @@
+site_name: appointmentReminder
+site_description: appointment reminder that reads your icloud calendar and contacts and sends an sms to your clients
+site_author: Vishakh Kumar
+repo_url: https://github.com/grokkingStuff/appointmentReminder
+
+theme: readthedocs
+
+pages:
+- Home: index.md
+- About:
+  - Release Notes: about/changelog.md
+  - Contributing: about/contributing.md
+  - License: about/license.md

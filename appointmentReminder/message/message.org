@@ -1,0 +1,48 @@
+
+
+
+#+BEGIN_SRC python :tangle message.py
+  class Message(object):
+      def __init__(self,message):
+          from string import Template
+          self.header    = Template(message["header"])
+          self.body      = Template(message["body"])
+          self.eventType =          message["eventType"]
+
+      <<substitute>>
+#+END_SRC
+
+
+* substitute
+Takes in any number of *named* arguments and substitute them into the message header and body
+#+NAME: substitute
+#+BEGIN_SRC python
+  def substitute(self,**kwargs):
+      for key,value in kwargs.iteritems():
+          i = {"{}".format(key):value}
+          self.header.safe_substitute(i)
+          self.body.safe_substitute(i)
+#+END_SRC
+
+** tests
+
+*** check if header substitute text
+#+BEGIN_SRC 
+
+#+END_SRC
+
+*** check if body substitutes text
+
+
+
+* test
+
+#+BEGIN_SRC python
+
+import message
+import pytest
+
+
+
+#+END_SRC
+load more comments
