@@ -1,34 +1,39 @@
 #+STARTIP: noindent
 
 #+BEGIN_SRC python
+  from message import Message
 
+  class Contact(object):
 
-from message import Message
+      # All Contacts must have the same client to send messages
+      message_client = None
 
+      def __init__(self,contact):
 
-class Contact(object):
-    def __init__(self,contact):
+          self.firstName = contact.get("firstName",None)
+          self.lastName = contact.get("lastName",None)
+          self.phone = contact.get("phone",None)
+          self.email = contact.get("email",None)
+          self.log = contact.get("log",[])
 
-        self.firstName = contact.get("firstName",None)
-        self.lastName = contact.get("lastName",None)
-        self.phone = contact.get("phone",None)
-        self.email = contact.get("email",None)
-        self.log = contact.get("log",[])
+      def message(self,message,client):
+          if message is None:
+              raise ValueError("No message is added")
 
-    def message(self,message,client):
-        if message is None:
-            raise ValueError("No message is added")
+          if Contact.client is None:
+              raise ValueError("You must initialize the Contact class with a Twilio client!")
 
-            if message.substitute():
-                message_response = client.messages.create(
-                                                          from_ = message.header
-                                                          body = message.body
-                                                          to = self.email
-                                                         )
-                self.log.append(message_response.sid)
-            else:
-                raise ValueError("Message entered has not been completely substituted")
- 
+          if message.substitute():
+              message_response = Contact.message_client.messages.create(
+                                                                       from_ = message.header,
+                                                                       body = message.body,
+                                                                       to = self.email
+                                                                       )
+              self.log.append(message_response.sid)
+          else:
+              raise ValueError("Message entered has not been completely substituted")
+
+  #    def email(self,message)
 #+END_SRC
 
 
